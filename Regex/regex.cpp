@@ -7,15 +7,16 @@ NFA::NFA(std::string regex)
 	form(regex);
 }
 
-bool NFA::isMatch(std::shared_ptr<State> state, std::string seq) {
+bool NFA::isMatch(std::shared_ptr<State>& state, std::string seq) {
 	if (state->isFinal()) return true;
 
 	std::unordered_map<char, std::vector<std::shared_ptr<State>>>
-		accept = state_diagram[state];
+		&accept = state_diagram[state];
 
 	for (auto c : seq) {
-		if (accept.find(c) != accept.end()) {
-			std::vector<std::shared_ptr<State>> stateSet = accept[c];
+		bool is_finded = (accept.find(c) != accept.end());
+		if (is_finded || accept.find('.') != accept.end()) {
+			std::vector<std::shared_ptr<State>> stateSet = accept[is_finded ? c : '.'];
 			for (auto& s : stateSet)
 				if (isMatch(s, { seq.begin() + 1, seq.end() }))
 					return true;
@@ -39,7 +40,6 @@ void NFA::form(std::string regex) {
 
 	state_diagram.clear();
 	init_state = std::make_shared<InitiState>();
-	state_set.push_back(init_state);
 	sta.push(init_state);
 	for (size_t i = 0; i < regex.length(); i++) {
 		char c = regex[i];
@@ -47,18 +47,14 @@ void NFA::form(std::string regex) {
 		case '(':
 		{
 			bool operor = false;
-			bool right_paren = false;
 			size_t j = i + 1;
 			prevc = regex[j];
 			parens.push(c);
-
-			while (!right_paren && j < regex.length()) {
+			while (!parens.empty() && j < regex.length()) {
 				c = regex[j];
-				
 				switch (c) {
 				case ')':
 					parens.pop();
-					right_paren = true;
 					if (!std::isalpha(prevc)
 						&& prevc != '*'
 						&& prevc != '+'
@@ -137,6 +133,11 @@ void NFA::form(std::string regex) {
 			state_diagram[previous_state][ac.first].push_back(final_state);
 		}
 	}
+	if (sta.top() == init_state) {
+		init_state = final_state;
+		sta.pop();
+	}
+	state_set.push_back(init_state);
 	while (!sta.empty()) {
 		if (std::find(state_set.begin(), state_set.end(), sta.top()) != state_set.end())
 			state_set.push_back(sta.top());

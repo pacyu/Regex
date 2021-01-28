@@ -65,7 +65,7 @@ public:
 	bool isMatch(std::string regex, std::string seq);
 
 private:
-	bool isMatch(std::shared_ptr<State> state, std::string seq);
+	bool isMatch(std::shared_ptr<State>& state, std::string seq);
 	void form(std::string regex);
 
 private:
