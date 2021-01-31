@@ -7,6 +7,15 @@
 #include <cctype>
 #include <memory>
 
+struct Op {
+	const static char Any = '.';
+	const static char Or = '|';
+	const static char OpenParen = '(';
+	const static char CloseParen = ')';
+	const static char Closure = '*';
+	const static char PlusClosure = '+';
+};
+
 enum class EState {
 	INITISTATE, // Initial State
 	INTERSTATE, // Intermediate State

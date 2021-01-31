@@ -10,13 +10,12 @@ NFA::NFA(std::string regex)
 bool NFA::isMatch(std::shared_ptr<State>& state, std::string seq) {
 	if (state->isFinal()) return true;
 
-	std::unordered_map<char, std::vector<std::shared_ptr<State>>>
-		&accept = state_diagram[state];
+	auto& accept = state_diagram[state];
 
 	for (auto c : seq) {
 		bool is_finded = (accept.find(c) != accept.end());
-		if (is_finded || accept.find('.') != accept.end()) {
-			std::vector<std::shared_ptr<State>> stateSet = accept[is_finded ? c : '.'];
+		if (is_finded || accept.find(Op::Any) != accept.end()) {
+			auto& stateSet = accept[is_finded ? c : Op::Any];
 			for (auto& s : stateSet)
 				if (isMatch(s, { seq.begin() + 1, seq.end() }))
 					return true;
@@ -44,7 +43,7 @@ void NFA::form(std::string regex) {
 	for (size_t i = 0; i < regex.length(); i++) {
 		char c = regex[i];
 		switch (c) {
-		case '(':
+		case Op::OpenParen:
 		{
 			bool operor = false;
 			size_t j = i + 1;
@@ -53,36 +52,37 @@ void NFA::form(std::string regex) {
 			while (!parens.empty() && j < regex.length()) {
 				c = regex[j];
 				switch (c) {
-				case ')':
+				case Op::CloseParen:
 					parens.pop();
 					if (!std::isalpha(prevc)
-						&& prevc != '*'
-						&& prevc != '+'
-						&& prevc != '.')
+						&& prevc != Op::Closure
+						&& prevc != Op::PlusClosure
+						&& prevc != Op::Any)
 						throw std::exception("Syntax error");
 					break;
-				case '|':
+				case Op::Or:
 					if (!std::isalpha(prevc)
-						&& prevc != '*'
-						&& prevc != '+'
-						&& prevc != '.')
+						&& prevc != Op::Closure
+						&& prevc != Op::PlusClosure
+						&& prevc != Op::Any)
 						throw std::exception("Syntax error");
 					operor = true;
 					break;
-				case '*':
+				case Op::Closure:
 					if (!std::isalpha(prevc)
-						&& prevc != '.')
+						&& prevc != Op::Any)
 						throw std::exception("Syntax error");
 					state_diagram.erase(sta.top());
 					sta.pop();
 					for (auto& accept : state_diagram[sta.top()])
 						state_diagram[sta.top()][accept.first].push_back(sta.top());
 					break;
-				case '+':
+				case Op::PlusClosure:
 					if (!std::isalpha(prevc)
-						&& prevc != '.')
+						&& prevc != Op::Any)
 						throw std::exception("Syntax error");
-					state_diagram[sta.top()][prevc].push_back(sta.top());
+					for (auto& accept : state_diagram[previous_state])
+						state_diagram[sta.top()][accept.first].push_back(sta.top());
 					break;
 				default:
 					if (!operor)
@@ -99,14 +99,15 @@ void NFA::form(std::string regex) {
 			i = j - 1;
 		}
 		break;
-		case '*':
+		case Op::Closure:
 			state_diagram.erase(sta.top());
 			sta.pop();
 			for (auto& accept: state_diagram[sta.top()])
 				state_diagram[sta.top()][accept.first].push_back(sta.top());
 			break;
-		case '+':
-			state_diagram[sta.top()][prevc].push_back(sta.top());
+		case Op::PlusClosure:
+			for (auto& accept : state_diagram[previous_state])
+				state_diagram[sta.top()][accept.first].push_back(sta.top());
 			break;
 		default:
 			previous_state = sta.top();
@@ -118,8 +119,7 @@ void NFA::form(std::string regex) {
 	}
 	if (!parens.empty()) throw std::exception("Syntax error");
 	final_state = std::make_shared<FinalState>();
-	std::unordered_map<char, std::vector<std::shared_ptr<State>>>
-		&accepts = state_diagram[previous_state];
+	auto& accepts = state_diagram[previous_state];
 	if (previous_state == sta.top())
 	{
 		for (auto& ac : accepts) {
@@ -139,7 +139,8 @@ void NFA::form(std::string regex) {
 	}
 	state_set.push_back(init_state);
 	while (!sta.empty()) {
-		if (std::find(state_set.begin(), state_set.end(), sta.top()) != state_set.end())
+		if (std::find(state_set.begin(), state_set.end(), sta.top())
+			!= state_set.end())
 			state_set.push_back(sta.top());
 		sta.pop();
 	}
