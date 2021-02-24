@@ -2,4 +2,4 @@
 
 This is a simple regular expression NFA simulator.
 
-About regulation of construction see [here](/regulation_of_regex_construction.txt).
+About regulation of construction see [here](/construction_rules.txt).
